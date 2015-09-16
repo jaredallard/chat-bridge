@@ -79,6 +79,11 @@ var skype = {
             console.log(method, request.url.substr(0,70),'...');
           }
 
+          if(request.method === 'GET') {
+            method = 'GET '
+            console.log(method, request.url.substr(0,70),'...');
+          }
+
           var header, i, len1, ref1;
           if (request.url.indexOf('poll' > 0 && request.method === 'POST')) {
             ref1 = request.headers;
