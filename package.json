@@ -1,0 +1,32 @@
+{
+  "name": "skype-to-irc",
+  "version": "0.0.1",
+  "description": "A skype-to-irc relay system.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jaredallard/skype-to-irc.git"
+  },
+  "keywords": [
+    "skype",
+    "irc",
+    "relay",
+    "foss"
+  ],
+  "author": "Jared Allard <jaredallard@outlook.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jaredallard/skype-to-irc/issues"
+  },
+  "homepage": "https://github.com/jaredallard/skype-to-irc#readme",
+  "dependencies": {
+    "irc": "^0.3.12",
+    "phantom": "^0.7.2",
+    "request": "^2.62.0",
+    "util": "^0.10.3",
+    "weak": "^1.0.0"
+  }
+}
