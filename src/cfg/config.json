@@ -3,5 +3,8 @@
     "username": "test",
     "password": "password"
   },
+  "irc": {
+    "username": "ffrelay"
+  },
   "active": 0
 }
