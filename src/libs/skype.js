@@ -48,14 +48,6 @@ var skype = {
     options = {};
     phantomOptions = {};
 
-    options.error = function() {
-      console.log(arguments);
-    }
-
-    options.success = function() {
-      console.log(arguments);
-    }
-
     // add weak opt to windows platform.
     if (process.platform.indexOf('win') !== -1) {
       phantomOptions.dnodeOpts = {
@@ -103,8 +95,7 @@ var skype = {
                 page.close();
                 ph.exit(0);
                 clearTimeout(errorTimer);
-                console.info('SkypeWeb adapter logged in successfully!');
-                console.log('Captured poll request: \n' + util.inspect(request));
+                // OVERLY DEBUG console.log('Captured poll request: \n' + util.inspect(request));
                 self.copyHeaders(request);
                 success = true;
                 if (options != null) {
@@ -137,6 +128,8 @@ var skype = {
   },
 
   pollLoop: function() {
+    console.log('EMIT', 'skype_connected');
+    this.events.emit('skype_connected');
     console.log('INFO', 'connected to skype');
     this.pollRequest();
   },
@@ -182,6 +175,8 @@ var skype = {
         return; // not in our room.
       }
 
+      // DEBUG: console.log(msg);
+
       if (user.room.indexOf('19:') !== 0) {
         console.debug('Prefix personal message from ' + user.name);
         msg.resource.content = msg.resource.content;
@@ -218,7 +213,7 @@ var skype = {
         } else if (body.errorCode) {
           console.error("Poll response error " + body.errorCode + ": " + body.message);
         } else {
-          console.error("Unexpected poll response body: ", body);
+          // DEBUG: console.error("Unexpected poll response body: ", body);
         }
       }
 

@@ -22,7 +22,6 @@ var irc_obj = {
 
     client.addListener('message', function (from, to, message) {
       if(to === '#ff') {
-        console.log('forward message from:', from, 'to skype');
         self.events.emit('irc_message', {
           from: from,
           content: message
@@ -31,11 +30,12 @@ var irc_obj = {
     });
 
     client.addListener('error', function(message) {
-        console.log('error:', message);
+        console.log('ERR ', message);
     });
 
     client.addListener('join#ff', function() {
-      console.log('relay status ==> up');
+      console.log('INFO', 'connected to IRC.');
+      console.log('EMIT', 'irc_connected');
       self.events.emit('irc_connected');
     });
 
