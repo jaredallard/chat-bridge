@@ -22,7 +22,7 @@ var skype = {
    **/
   connect: function(username, password) {
     this.username = username;
-    this.passsword = password;
+    this.password = password;
     url = "https://client-s.gateway.messenger.live.com";
     this.pollUrl = url + "/v1/users/ME/endpoints/SELF/subscriptions/0/poll";
     this.sendUrl = function(user) {
@@ -109,6 +109,8 @@ var skype = {
             console.log('Skype during login: ' + request.url);
           }
         });
+
+        console.log(self.username, self.password);
 
         page.set('settings.userAgent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 ' + '(KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
         return page.open('https://web.skype.com', function(status) {

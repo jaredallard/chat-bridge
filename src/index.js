@@ -13,8 +13,6 @@ var config = require('./cfg/config.json');
 var skype = require('./libs/skype.js'),
     irc = require('./libs/irc.js');
 
-console.log(config.skype.username, config.skype.password)
-
 skype.connect(config.skype.username, config.skype.password)
 
 /** Connect to IRC **/
