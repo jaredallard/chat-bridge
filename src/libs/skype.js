@@ -8,21 +8,26 @@
  * @license MIT
  **/
 
-var rqst    = require('request'),
+var request = require('request'),
     phantom = require('phantom'),
+    escape  = require('escape-html'),
     util    = require('util'),
+    events  = require('events'),
     fs      = require('fs');
 
 var skype = {
+  events: new events.EventEmitter(),
+
   /**
    * Connect to skype, uses skype credentials.
    *
    * @param {string} username - bot's username.
    * @param {string} password - bot's password.
    **/
-  connect: function(username, password) {
+  connect: function(username, password, room) {
     this.username = username;
     this.password = password;
+    this.room = room;
     url = "https://client-s.gateway.messenger.live.com";
     this.pollUrl = url + "/v1/users/ME/endpoints/SELF/subscriptions/0/poll";
     this.sendUrl = function(user) {
@@ -33,6 +38,10 @@ var skype = {
       contenttype: 'text',
       content: ''
     };
+    this.sendQueues = {};
+    this.headers = false;
+    this.eventsCache = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    this.reconnectInterval = 240;
 
     var phantomOptions, self;
     self = this;
@@ -115,6 +124,7 @@ var skype = {
         page.set('settings.userAgent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 ' + '(KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
         return page.open('https://web.skype.com', function(status) {
           return setTimeout((function() {
+            page.injectJs('./inject/Blob.js'); // phantom 1.x doesn't support blob.
             return page.evaluate((function(username, password) {
               document.getElementById('username').value = username;
               document.getElementById('password').value = password;
@@ -124,6 +134,132 @@ var skype = {
         });
       });
     }), phantomOptions);
+  },
+
+  pollLoop: function() {
+    console.log('INFO', 'connected to skype');
+    this.pollRequest();
+  },
+
+  sendRequest: function(user, msg) {
+    var now, self;
+    self = this;
+    now = new Date().getTime();
+    this.headers.ContextId = now;
+    this.sendBody.clientmessageid = now;
+    this.sendBody.content = escape(msg);
+    return request.post({
+      url: this.sendUrl(user),
+      headers: this.headers,
+      body: this.sendBody,
+      gzip: true,
+      json: true
+    }, function(error, response, body) {
+      var ref1;
+      if ((ref1 = response.statusCode) !== 200 && ref1 !== 201) {
+        console.error("Send request returned status " + (response.statusCode + ". user='" + user + "' msg='" + msg + "'"));
+      }
+      if (error) {
+        console.error("Send request failed: " + error);
+      }
+    });
+  },
+
+  onEventMessage: function(msg) {
+    var ref1, ref2, ref3, user, userID;
+    if (msg.resourceType === 'NewMessage' && ((ref1 = (ref2 = msg.resource) != null ? ref2.messagetype : void 0) === 'Text' || ref1 === 'RichText')) {
+      userID = msg.resource.from.split('/contacts/')[1].replace('8:', '');
+
+      if (userID === this.username) {
+        return;
+      }
+
+      user = {}
+      user.name = userID;
+      user.room = msg.resource.conversationLink.split('/conversations/')[1];
+
+      if(user.room !== this.room) {
+        return; // not in our room.
+      }
+
+      if (user.room.indexOf('19:') !== 0) {
+        console.debug('Prefix personal message from ' + user.name);
+        msg.resource.content = msg.resource.content;
+      }
+
+      this.events.emit('skype_message', {
+        from: user.name,
+        content: msg.resource.content
+      })
+    }
+  },
+
+  pollRequest: function() {
+    var self;
+    self = this;
+    this.headers.ContextId = new Date().getTime();
+    return request.post({
+      url: this.pollUrl,
+      headers: this.headers,
+      gzip: true
+    }, function(error, response, body) {
+      var err, i, len1, message, ref1;
+      if (error) {
+        console.error("Poll request failed: " + error);
+      } else { // request handles JSON?
+        body = JSON.parse(body);
+
+        if (body.eventMessages) {
+          ref1 = body.eventMessages;
+          for (i = 0, len1 = ref1.length; i < len1; i++) {
+            message = ref1[i];
+            self.onEventMessage(message);
+          }
+        } else if (body.errorCode) {
+          console.error("Poll response error " + body.errorCode + ": " + body.message);
+        } else {
+          console.error("Unexpected poll response body: ", body);
+        }
+      }
+
+      return self.pollRequest();
+    });
+  },
+
+  copyHeaders:  function(request) {
+    var backup, header, i, len1, ref1, self;
+    this.headers = {};
+    ref1 = request.headers;
+    for (i = 0, len1 = ref1.length; i < len1; i++) {
+      header = ref1[i];
+      this.headers[header.name] = header.value;
+    }
+    delete this.headers['Content-Length'];
+    this.headers['Host'] = 'client-s.gateway.messenger.live.com';
+    this.headers['Connection'] = 'keep-alive';
+    this.headers['Accept-Encoding'] = 'gzip, deflate';
+    self = this;
+    backup = JSON.stringify({
+      expire: new Date(new Date().getTime() + self.reconnectInterval * 60 * 1000),
+      headers: self.headers
+    });
+    return fs.writeFile('hubot-skype-web.backup', backup, function(err) {
+      if (err) {
+        return console.error('IO error while storing ' + 'Skype headers to disc:' + err);
+      } else {
+        return self.pollLoop();
+      }
+    });
+  },
+
+  /**
+   * Send Message
+   *
+   * @param {string} to - who to send it too (or room ID);
+   * @param {string} message - message contents
+   **/
+  send: function(to, message) {
+    this.sendRequest(to, message);
   }
 };
 

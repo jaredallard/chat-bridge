@@ -13,7 +13,16 @@ var config = require('./cfg/config.json');
 var skype = require('./libs/skype.js'),
     irc = require('./libs/irc.js');
 
-skype.connect(config.skype.username, config.skype.password)
+skype.connect(config.skype.username, config.skype.password, config.skype.room);
 
 /** Connect to IRC **/
 irc.init(config.irc.username);
+
+irc.events.on('irc_message', function(data) {
+  console.log(data);
+  skype.send(config.skype.room, data.from+': '+data.content);
+})
+
+skype.events.on('skype_message', function(data) {
+  irc.send('#ff', data.from+": "+data.content);
+})

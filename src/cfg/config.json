@@ -1,7 +1,8 @@
 {
   "skype": {
     "username": "test",
-    "password": "password"
+    "password": "password",
+    "room": "19:room@skype.com"
   },
   "irc": {
     "username": "ffrelay"

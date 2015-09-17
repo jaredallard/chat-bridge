@@ -13,7 +13,6 @@ var irc_obj = {
   init: function(username) {
     var self = this;
 
-    
     var client = new irc.Client('irc.pony.so', username, {
         channels: ['#ff'],
         secure: true,
@@ -39,6 +38,12 @@ var irc_obj = {
       console.log('relay status ==> up');
       self.events.emit('irc_connected');
     });
+
+    this.client = client;
+  },
+
+  send: function(channel, message) {
+    this.client.say(channel, message)
   }
 }
 
