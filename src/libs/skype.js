@@ -57,7 +57,6 @@ var skype = {
     // create phantom object.
     return phantom.create((function(ph) {
       return ph.createPage(function(page) {
-        // register error handler.
         var errorTimer, requestsCount, success;
         errorTimer = setTimeout((function() {
           console.error('SkypeWeb adapter failed to login!');
@@ -65,7 +64,6 @@ var skype = {
           ph.exit(0);
           return options != null ? typeof options.error === "function" ? options.error() : void 0 : void 0;
         }), 50000);
-
 
         requestsCount = 0;
         success = false;
@@ -114,15 +112,12 @@ var skype = {
 
         page.set('settings.userAgent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 ' + '(KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
         return page.open('https://web.skype.com', function(status) {
-          console.log(status);
           return setTimeout((function() {
-            return page.evaluate(function(username, password) {
+            return page.evaluate((function(username, password) {
               document.getElementById('username').value = username;
               document.getElementById('password').value = password;
               return document.getElementById('signIn').click();
-            }, function() {
-              console.info('INFO', 'attempting skype login')
-            }, self.username, self.password);
+            }), (function() {}), self.username, self.password);
           }), 5000);
         });
       });
