@@ -50,7 +50,7 @@ class Skype {
     this.reconnectInterval = 240;
     this.SkypeToken = null;
 
-    this.ident = 'skype';
+    this.ident = 'skype#'+this.config.room;
   }
 
   connect() {
