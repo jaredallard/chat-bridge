@@ -1,3 +1,4 @@
-node_modules/**
-hubot-skype-web.backup
-src/cfg/users.json
+node_modules
+*.png
+*.log
+pipeline.js

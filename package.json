@@ -1,35 +1,29 @@
 {
-  "name": "skype-to-irc",
-  "version": "0.0.1",
-  "description": "A skype-to-irc relay system.",
+  "name": "chat-bridge",
+  "version": "2.0.0",
+  "description": "A modular chat bridging system",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jaredallard/skype-to-irc.git"
+    "url": "https://github.com/jaredallard"
   },
   "keywords": [
-    "skype",
+    "chat",
+    "bridge",
     "irc",
-    "relay",
-    "foss"
+    "skype"
   ],
   "author": "Jared Allard <jaredallard@outlook.com>",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/jaredallard/skype-to-irc/issues"
-  },
-  "homepage": "https://github.com/jaredallard/skype-to-irc#readme",
   "dependencies": {
-    "escape-html": "^1.0.3",
-    "html-entities": "^1.1.3",
-    "irc": "^0.3.12",
-    "phantom": "^0.7.2",
-    "request": "^2.62.0",
-    "striptags": "^2.0.3",
-    "util": "^0.10.3",
-    "weak": "^1.0.0"
+    "async": "^2.0.1",
+    "debug": "^2.2.0",
+    "irc": "^0.5.0",
+    "phantom": "^2.1.21",
+    "raven": "^0.12.1",
+    "request": "^2.75.0"
   }
 }
