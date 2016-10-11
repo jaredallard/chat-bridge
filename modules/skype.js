@@ -14,6 +14,11 @@ const url     = require('url');
 const Events  = require('events');
 const request = require('request');
 
+// Parser
+const Entities = require('html-entities').AllHtmlEntities;
+const strip    = require('striptags');
+
+let entities   = new Entities();
 let that = null;
 
 class Skype {
@@ -168,9 +173,6 @@ class Skype {
     sendBody.content = msg;
     sendBody.imdisplayname = self.config.display_name;
 
-    debug('sendRequest:headers', headers);
-
-
     return request.post({
       url: this.sendUrl(user),
       headers: headers,
@@ -221,7 +223,7 @@ class Skype {
    * @param {String} message - message to send.
    **/
   send(message) {
-    this.sendRequest(this.config.room, message);
+    that.sendRequest(that.config.room, message);
   }
 
   /**
@@ -232,7 +234,7 @@ class Skype {
    * @param {String} message - message they sent.
    **/
   forward(user, message, source) {
-    that.send(user+'@'+source+': '+message);
+    that.send('<b>'+user+'</b>@'+source+': '+message);
   }
 
   /**
@@ -269,8 +271,12 @@ class Skype {
         return;
       }
 
+      // Decode Entities. *then* strip tags.
+      let message = entities.decode(msg.resource.content);
+      message     = strip(message);
+
       debug('message', 'from', user.name)
-      this.onmessage(user.name, msg.resource.content, that.metadata)
+      this.onmessage(user.name, message, that.metadata)
     }
   }
 

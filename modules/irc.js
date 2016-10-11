@@ -70,7 +70,7 @@ class Irc {
    * @param {String} message - message to send.
    **/
   send(message) {
-    this.client.say(this.channel, message);
+    that.client.say(that.channel, message);
   }
 
   /**

@@ -10,8 +10,10 @@
 
 const async = require('async');
 const Modules = require('./lib/modules.js');
+const command = require('./lib/commands.js');
+
 const debug   = require('debug')('chat-bridge');
-const raven = require('raven');
+const raven   = require('raven');
 
 let modules   = new Modules.class();
 modules.scan('./modules');
@@ -29,8 +31,8 @@ let pipeline = require('./pipeline.js');
 
 if(pipeline.sentry.enabled) {
   debug('sentry', 'enabled')
-  let client = new raven.Client();
-  client.patchGlobal(pipeline.sentry.DSN);
+  let client = new raven.Client(pipeline.sentry.DSN);
+  client.patchGlobal();
 }
 
 debug('pipeline', 'has', pipeline.pipeline.length, 'pipes');
@@ -90,7 +92,8 @@ pipeline.pipeline.forEach(pipe => {
     senders.push({
       module: pipe.module,
       id: id,
-      sender: module.forward
+      sender: module.forward,
+      send: module.send
     })
   }
 
@@ -111,12 +114,56 @@ let ready = () => {
 
   recievers.forEach(function(recv) {
     debug('link', recv.module+'['+recv.id+']');
+
     recv.onmessage((nick, message, from) => {
       if(ignore_nicks.indexOf(nick) !== -1) {
         return debug('send:ignore', 'from a registered forwarder');
 
       }
+
+      let was_command  = false;
+      let command_rtrn = false;
       senders.forEach(send => {
+        /**
+         * Command Parsers.
+         **/
+
+        if(was_command) return;
+
+        // Check if command, and delay if not our id.
+        if(message.indexOf('!') === 0 && !was_command) {
+          debug('command', 'is in command format, delay');
+
+          // Provide to commands
+          send.data = {};
+          send.data.nick    = nick;
+          send.data.source  = from.ident;
+          send.data.message = message;
+
+          command_rtrn = command.process(message, send)
+        }
+
+        // Check if a comamnd happened, and if
+        if(command_rtrn && send.id === from.id) {
+          debug('command', 'in command sender channel, run func.')
+
+          // Run the comamnd.
+          command_rtrn.func(command_rtrn.opts, command_rtrn.send)
+
+          // set was_command to invalidate other senders, reset command_rtrn
+          was_command = true;
+          command_rtrn = false;
+
+          return;
+        }
+
+        // Check if a delayed.
+        if(command_rtrn) return;
+
+        /**
+         * Forward Functions
+         **/
+
         if(send.id === from.id) {
           return debug('send:ignore', 'came from us', send.module, 'to', from.module);
         }
@@ -126,4 +173,6 @@ let ready = () => {
       });
     });
   })
+
+  debug('all', 'marked ready')
 }
