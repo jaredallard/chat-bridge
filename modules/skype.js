@@ -17,6 +17,7 @@ const request = require('request');
 // Parser
 const Entities = require('html-entities').AllHtmlEntities;
 const strip    = require('striptags');
+const escape   = require('escape-html');
 
 let entities   = new Entities();
 let that = null;
@@ -50,7 +51,7 @@ class Skype {
     this.reconnectInterval = 240;
     this.SkypeToken = null;
 
-    this.ident = 'skype#'+this.config.room;
+    this.ident = 'skype#'+this.config.room.replace('@thread.skype', '');
   }
 
   connect() {
@@ -168,10 +169,12 @@ class Skype {
     if(headers.ContextId) delete headers.ContextId
     if(headers['Content-Length']) delete headers['Content-Length'];
 
-    let sendBody = this.sendBody;
-    sendBody.clientmessageid = now.toString();
-    sendBody.content = msg;
-    sendBody.imdisplayname = self.config.display_name;
+    let sendBody              = this.sendBody;
+    sendBody.clientmessageid  = now.toString();
+    sendBody.content          = escape(msg);
+    sendBody.imdisplayname    = self.config.display_name;
+
+    debug('sendRequest', sendBody.content);
 
     return request.post({
       url: this.sendUrl(user),
@@ -351,7 +354,7 @@ class Skype {
       gzip: true
     }, (error, response, body) => {
       if (error) {
-        console.error("Poll request failed: " + error);
+        throw error;
       }
 
       let parsed_body;

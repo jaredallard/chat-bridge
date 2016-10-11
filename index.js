@@ -18,6 +18,7 @@ const raven   = require('raven');
 let modules   = new Modules.class();
 modules.scan('./modules');
 
+global.usercache = require('./usercache.json')
 
 let methods = [];
 Object.keys(Modules.loaded.modules).forEach(key => {
@@ -92,6 +93,8 @@ pipeline.pipeline.forEach(pipe => {
     senders.push({
       module: pipe.module,
       id: id,
+      ident: module.ident,
+      source: module.ident,
       sender: module.forward,
       send: module.send
     })
@@ -100,6 +103,8 @@ pipeline.pipeline.forEach(pipe => {
   if(pipe.method == 'recv' || pipe.method == 'both') {
     recievers.push({
       module: pipe.module,
+      ident: module.ident,
+      source: module.ident,
       id: id,
       onmessage: module.recieved
     })
@@ -147,8 +152,11 @@ let ready = () => {
         if(command_rtrn && send.id === from.id) {
           debug('command', 'in command sender channel, run func.')
 
-          // Run the comamnd.
-          command_rtrn.func(command_rtrn.opts, command_rtrn.send)
+          // Run the comamnd w/ opts, our sender, other recievers / senders.
+          command_rtrn.func(command_rtrn.opts, command_rtrn.send, {
+            recievers: recievers,
+            senders: senders
+          })
 
           // set was_command to invalidate other senders, reset command_rtrn
           was_command = true;
@@ -168,8 +176,21 @@ let ready = () => {
           return debug('send:ignore', 'came from us', send.module, 'to', from.module);
         }
 
+        /**
+         * Nick Subsitution check
+         **/
+        if(global.usercache[send.ident]) {
+          debug('usercache', 'found', send.ident, 'entry.')
+          if(global.usercache[send.ident][nick]) {
+            debug('usercache', 'found', nick, '->', global.usercache[send.ident][nick])
+            nick = global.usercache[send.ident][nick];
+          }
+        } else {
+          debug('usercache', 'fail', send.ident, global.usercache)
+        }
+
         debug('send', send.module+'['+send.id+']', message, 'from', nick);
-        send.sender(nick, message, from.ident);
+        send.sender(nick, message, from.ident.split("#")[0]);
       });
     });
   })
