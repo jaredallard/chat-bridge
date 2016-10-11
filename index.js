@@ -18,7 +18,17 @@ const raven   = require('raven');
 let modules   = new Modules.class();
 modules.scan('./modules');
 
-global.usercache = require('./usercache.json')
+// Load username cache.
+try {
+  global.usercache = require('./usercache.json')
+} catch(e) {
+  global.usercache = {}
+  fs.writeFileSync(
+    require('path').join(__dirname, './usercache.json'), 
+    JSON.strinify(global.usercache),
+    'utf8'
+  );
+}
 
 let methods = [];
 Object.keys(Modules.loaded.modules).forEach(key => {
