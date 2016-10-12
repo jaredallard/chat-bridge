@@ -52,6 +52,7 @@ class Irc {
    * Authenticate *this* instance.
    *
    * @param {Function} done - finished.
+   * @returns {undefined} use done
    **/
   init(done) {
     if(!done) done = () => {};
@@ -68,6 +69,7 @@ class Irc {
    * Send a message
    *
    * @param {String} message - message to send.
+   * @returns {node-irc#client.say} response
    **/
   send(message) {
     that.client.say(that.channel, message);
@@ -76,9 +78,11 @@ class Irc {
   /**
    * Special send for forwarding.
    *
-   * @param {String} that - this
    * @param {String} nick - nick name that sent message.
    * @param {String} message - message they sent.
+   * @param {String} source - source of the message.
+   *
+   * @returns {this#send} response
    **/
   forward(nick, message, source) {
     if(nick === that.config.nick) return debug('forward:ignore', 'from us:', nick);
@@ -86,17 +90,17 @@ class Irc {
       return debug('forward:ignore', 'in block list', nick);
     }
 
-    that.send(nick+'@'+irc.colors.wrap('dark_blue', source)+': '+message);
+    that.send(irc.colors.wrap(nick+'@'+source+': '+message));
   }
 
   /**
    * Wrapper to execute CB on recieved message.
    *
-   * @param {Object} that - this.
    * @param {Function} func - callback.
+   * @returns {node-irc#client.on} response
    **/
   recieved(func) {
-    that.client.on('message'+that.channel, (nick, text, message) => {
+    that.client.on('message'+that.channel, (nick, text) => {
       debug('recieved', 'message')
       return func(nick, text, that.metadata)
     })

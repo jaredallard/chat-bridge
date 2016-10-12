@@ -8,6 +8,8 @@
 
 'use strict';
 
+/* eslint-env node, browser */
+
 const phantom = require('phantom')
 const debug   = require('debug')('chat-bridge:modules:skype')
 const url     = require('url');
@@ -28,15 +30,16 @@ class Skype {
     this.config        = config;
 
     that = this;
+
     // Setup EventEmitter;
     this.events        = new Events.EventEmitter();
 
-    let url = "https://client-s.gateway.messenger.live.com";
-    this.pollUrl = url + "/v1/users/ME/endpoints/SELF/subscriptions/0/poll";
+    let url = 'https://client-s.gateway.messenger.live.com';
+    this.pollUrl = url + '/v1/users/ME/endpoints/SELF/subscriptions/0/poll';
     this.pingUrl = 'https://web.skype.com/api/v1/session-ping';
     this.activeUrl = url + '/v1/users/ME/endpoints/SELF/active';
     this.sendUrl = user => {
-      return url + "/v1/users/ME/conversations/" + user + "/messages";
+      return url + '/v1/users/ME/conversations/' + user + '/messages';
     };
     this.sendBody = {
       'Has-Mentions': false,
@@ -45,18 +48,21 @@ class Skype {
       contenttype: 'text',
       content: ''
     };
-    this.sendQueues = {};
     this.headers = false;
-    this.eventsCache = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    this.reconnectInterval = 240;
     this.SkypeToken = null;
 
     this.ident = 'skype#'+this.config.room.replace('@thread.skype', '');
   }
 
+  /**
+   * Connect to the service.
+   *
+   * @returns {undefined} nothing to return.
+   **/
   connect() {
     this.login()
   }
+
   /**
    * Skype Login Function.
    *
@@ -72,19 +78,18 @@ class Skype {
         debug('login', 'page created')
 
         let errorTimer;
-        errorTimer = setTimeout((function() {
+        errorTimer = setTimeout(() => {
           console.error('SkypeWeb adapter failed to login! See error.png');
           page.render('error.png')
           page.close();
           ph.exit(0);
-        }), 50000);
+        }, 50000);
 
         /**
          * Snatch Token
          **/
         let successes = 0;
-        let set       = null;
-        page.on('onResourceRequested', (request, network) => {
+        page.on('onResourceRequested', request => {
           let endpoint = url.parse(request.url).pathname.replace(/((\?|#).*)?$/, '')
 
           if(request.method === 'POST') {
@@ -113,7 +118,7 @@ class Skype {
 
               // Taken from production.
               self.headers['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64; rv:49.0) Gecko/20100101 Firefox/49.0';
-              self.headers['ClientInfo'] = 'os=Linux; osVer=U; proc=Linux x86_64; lcid=en-us; deviceType=1; country=n/a; clientName=skype.com; clientVer=908/1.62.0.45//skype.com';
+              self.headers.ClientInfo    = 'os=Linux; osVer=U; proc=Linux x86_64; lcid=en-us; deviceType=1; country=n/a; clientName=skype.com; clientVer=908/1.62.0.45//skype.com';
 
               self.events.emit('ready');
             }
@@ -125,7 +130,7 @@ class Skype {
           URL = 'https://login.live.com/ppsecure/post.srf?wa=wsignin1.0&rpsnv=13&ct=1476159250&rver=6.6.6577.0&wp=MBI_SSL&wreply=https%3A%2F%2Flw.skype.com%2Flogin%2Foauth%2Fproxy%3Fclient_id%3D578134%26redirect_uri%3Dhttps%253A%252F%252Fweb.skype.com%252F%26site_name%3Dlw.skype.com&lc=1033&id=293290&mkt=en-US'
         }
 
-        page.open(URL).then((status) => {
+        page.open(URL).then(() => {
           debug('login', 'page opened')
 
           setTimeout(() => {
@@ -160,7 +165,40 @@ class Skype {
     });
   }
 
-  sendRequest(user, msg) {
+  /**
+   * Wrap text in type formatter.
+   *
+   * @param {String} type - type of format, i.e bold, italic.
+   * @param {Array} text - arry of text, or string.
+   *
+   * @returns {String} formatted text, or unformatted if unsupported.
+   **/
+  wrapFormatter(type, ...text) {
+    let formatters = {
+      bold: '<b>{{text}}</b>',
+      italic: '<i>{{text}}</i>'
+    };
+
+    const proc_text = text.join(' ');
+    debug('wrapFormatter', 'got', text);
+    debug('wrapFormatter', 'corrected:', text);
+
+    if(!formatters[type]) {
+      return proc_text;
+    }
+
+    return formatters[type].replace('{{text}}', proc_text)
+  }
+
+  /**
+   * Send a message to Skype.
+   *
+   * @param {String} user - username.
+   * @param {String} msg  - message to send to User.
+   * @param {Object} opts - options object.
+   * @returns {undefined} nothing.
+   **/
+  sendRequest(user, msg, opts) {
     var now, self;
     self = this;
     now = new Date().getTime();
@@ -171,7 +209,12 @@ class Skype {
 
     let sendBody              = this.sendBody;
     sendBody.clientmessageid  = now.toString();
-    sendBody.content          = escape(msg);
+
+    if(opts.user && opts.source) {
+      sendBody.content = '<b>'+opts.user+'</b>@'+opts.source+': ';
+    }
+
+    sendBody.content          += escape(escape(msg)); // :(
     sendBody.imdisplayname    = self.config.display_name;
 
     debug('sendRequest', sendBody.content);
@@ -186,13 +229,13 @@ class Skype {
       let statusCode = response.statusCode;
       if (statusCode !== 200 && statusCode !== 201 ) {
         debug('sendRequest:errorUrl', this.sendUrl(user));
-        console.error("Send request returned status ", response.statusCode);
+        console.error('Send request returned status ', response.statusCode);
         console.error(sendBody);
         console.error(body);
       }
 
       if (error) {
-        console.error("Send request failed: " + error);
+        console.error('Send request failed: ' + error);
       }
     });
   }
@@ -201,15 +244,17 @@ class Skype {
    * Call func on ready.
    *
    * @param {Function} func - to call on ready.
+   * @returns {undefined} nothing to return.
    **/
   ready(func) {
     this.events.on('ready', func)
   }
 
   /**
-   * Authenticate *this* instance.
+   * Iniiate this instance.
    *
    * @param {Function} done - finished.
+   * @returns {undefined} nothing to return
    **/
   init(done) {
     if(!done) done = () => {};
@@ -224,27 +269,34 @@ class Skype {
    * Send a message
    *
    * @param {String} message - message to send.
+   * @param {Object} [opts={}] - options.
+   * @returns {this.sendRequest} response.
    **/
-  send(message) {
-    that.sendRequest(that.config.room, message);
+  send(message, opts = {}) {
+    that.sendRequest(that.config.room, message, opts);
   }
 
   /**
    * Special send for forwarding.
    *
-   * @param {String} that - this
-   * @param {String} user - that sent message.
+   * @param {String} user    - that sent message.
    * @param {String} message - message they sent.
+   * @param {String} source  - message source.
+   *
+   * @returns {this.send} response.
    **/
   forward(user, message, source) {
-    that.send('<b>'+user+'</b>@'+source+': '+message);
+    that.send(message, {
+      user: user,
+      source: source
+    });
   }
 
   /**
    * Wrapper to execute CB on recieved message.
    *
-   * @param {Object} that - this.
    * @param {Function} func - callback.
+   * @returns {undefined} nothing to return
    **/
   recieved(func) {
     debug('recived', 'listening for new messages on Skype');
@@ -256,9 +308,15 @@ class Skype {
     }, 10000)
   }
 
+  /**
+   * Parse Skype Message from poll stream.
+   *
+   * @param {Object} msg - skype message object.
+   * @returns {undefined} nothing to return
+   **/
   parseMessage(msg) {
-    let ref1, ref2, ref3, user, userID;
-    if (msg.resourceType === 'NewMessage' && ((ref1 = (ref2 = msg.resource) != null ? ref2.messagetype : void 0) === 'Text' || ref1 === 'RichText')) {
+    let ref1, ref2, user, userID;
+    if (msg.resourceType === 'NewMessage' && ((ref1 = (ref2 = msg.resource) !== null ? ref2.messagetype : undefined) === 'Text' || ref1 === 'RichText')) {
       userID = msg.resource.from.split('/contacts/')[1].replace('8:', '');
 
       if (userID === this.username) {
@@ -273,6 +331,12 @@ class Skype {
         debug('reciever', 'got message in room', user.room, 'not', that.config.room);
         return;
       }
+
+      if(!msg.resource.content) {
+        debug('invalid:message', msg)
+      }
+
+      debug('message', msg.resource.content);
 
       // Decode Entities. *then* strip tags.
       let message = entities.decode(msg.resource.content);
@@ -300,6 +364,11 @@ class Skype {
     return res;
   }
 
+  /**
+   * Mark us active on Skype.
+   *
+   * @returns {undefined} nothing to return
+   **/
   active() {
     let headers = this.unwind(this.headers);
 
@@ -311,16 +380,20 @@ class Skype {
       },
       json: true,
       gzip: true
-    }, (error, response, body) => {
+    }, (error) => {
       if (error) {
-        console.error("Active request failed: " + error);
+        return debug('active', 'failed', error);
       }
 
       debug('active', 'succedded');
     });
   }
 
-
+  /**
+   * Mandatory Ping.
+   *
+   * @returns {undefined} nothing to return
+   **/
   ping() {
     let headers = this.unwind(this.headers);
     headers['X-Skypetoken'] = this.SkypeToken;
@@ -329,9 +402,9 @@ class Skype {
       url: this.pingUrl,
       headers: headers,
       gzip: true
-    }, (error, response, body) => {
+    }, (error) => {
       if (error) {
-        console.error("Ping request failed: " + error);
+        debug('ping', 'failed', error);
       }
     });
   }
@@ -339,7 +412,7 @@ class Skype {
   /**
    * Poll the Skype Message Endpoint.
    *
-   * @returns {object}
+   * @returns {undefined} nothing to return
    **/
   pollRequest() {
     const self = this;
@@ -351,30 +424,26 @@ class Skype {
     request.post({
       url: this.pollUrl,
       headers: headers,
+      json: true,
       gzip: true
     }, (error, response, body) => {
       if (error) {
         throw error;
       }
 
-      let parsed_body;
-      try {
-        parsed_body = JSON.parse(body);
-      } catch(e) {
-        debug('pollRequest', 'invalid json');
-        return console.log(body);
+      if (body.errorCode) {
+        debug('poll', 'errorCode', body.errorCode);
       }
 
-      debug('poll', 'parse', parsed_body)
-
-      if (parsed_body.eventMessages) {
-        parsed_body.eventMessages.forEach(message => {
+      // If any messages, parse them.
+      if (body.eventMessages) {
+        body.eventMessages.forEach(message => {
+          // For each message, parse it.
           this.parseMessage(message)
         })
-      } else if (parsed_body.errorCode) {
-        console.error("Poll response error " + parsed_body.errorCode + ": " + parsed_body.message);
       }
 
+      // Ping on each successful pollRequest.
       self.ping();
 
       return self.pollRequest();

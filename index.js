@@ -8,10 +8,10 @@
 
 'use strict';
 
-const async = require('async');
 const Modules = require('./lib/modules.js');
 const command = require('./lib/commands.js');
 
+const fs      = require('fs');
 const debug   = require('debug')('chat-bridge');
 const raven   = require('raven');
 
@@ -24,7 +24,7 @@ try {
 } catch(e) {
   global.usercache = {}
   fs.writeFileSync(
-    require('path').join(__dirname, './usercache.json'), 
+    require('path').join(__dirname, './usercache.json'),
     JSON.strinify(global.usercache),
     'utf8'
   );
@@ -200,7 +200,7 @@ let ready = () => {
         }
 
         debug('send', send.module+'['+send.id+']', message, 'from', nick);
-        send.sender(nick, message, from.ident.split("#")[0]);
+        send.sender(nick, message, from.ident.split('#')[0]);
       });
     });
   })
