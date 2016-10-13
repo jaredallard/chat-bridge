@@ -25,7 +25,7 @@ try {
   global.usercache = {}
   fs.writeFileSync(
     require('path').join(__dirname, './usercache.json'),
-    JSON.strinify(global.usercache),
+    JSON.stringify(global.usercache),
     'utf8'
   );
 }
