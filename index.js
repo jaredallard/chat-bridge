@@ -37,8 +37,13 @@ Object.keys(Modules.loaded.modules).forEach(key => {
 
 console.log('Available Pipes:', methods);
 
-
-let pipeline = require('./pipeline.js');
+let pipeline;
+if(process.env.IN_TEST) {
+  console.warn('WARN: IN TEST MODE');
+  pipeline = require('./pipeline.example.js');
+} else {
+  pipeline = require('./pipeline.js');
+}
 
 if(pipeline.sentry.enabled) {
   debug('sentry', 'enabled')
