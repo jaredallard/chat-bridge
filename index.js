@@ -8,6 +8,9 @@
 
 'use strict';
 
+// Eval test mode.
+if(process.argv[2] === '--test') process.env.IN_TEST = true;
+
 const Modules = require('./lib/modules.js');
 const command = require('./lib/commands.js');
 
@@ -35,6 +38,7 @@ Object.keys(Modules.loaded.modules).forEach(key => {
   methods.push(key);
 })
 
+console.log('MAIN: Starting');
 console.log('Available Pipes:', methods);
 
 let pipeline;
@@ -223,3 +227,7 @@ let ready = () => {
 
   debug('all', 'marked ready')
 }
+
+process.on('exit', () => {
+  console.log('MAIN: Stop.')
+});
