@@ -11,6 +11,9 @@
 const irc     = require('irc');
 const debug   = require('debug')('chat-bridge:modules:irc');
 
+// Irc Colors.
+require('irc-colors').global();
+
 let that = null;
 
 class Irc {
@@ -72,7 +75,41 @@ class Irc {
    * @returns {node-irc#client.say} response
    **/
   send(message) {
+    if(typeof message === 'object') {
+      debug('send', 'message is an object');
+      message = message.content;
+    }
+
     that.client.say(that.channel, message);
+  }
+
+  /**
+   * Wrap text in type formatter.
+   *
+   * @param {String} type - type of format, i.e bold, italic.
+   * @param {Array} text - arry of text, or string.
+   *
+   * @returns {String} formatted text, or unformatted if unsupported.
+   **/
+  wrapFormatter(type, ...text) {
+    let formatters = {
+
+    };
+
+    const proc_text = text.join(' ');
+    debug('wrapFormatter', 'got', text);
+    debug('wrapFormatter', 'corrected:', proc_text);
+
+    if(!formatters[type]) {
+      debug('wrapFormatter', type, 'not found');
+      return proc_text;
+    }
+
+    let formatted = formatters[type].replace('{{text}}', proc_text);
+    debug('wrapFormatter', 'formatted:', formatted);
+
+    // Return formatted text.
+    return formatted;
   }
 
   /**
@@ -90,7 +127,10 @@ class Irc {
       return debug('forward:ignore', 'in block list', nick);
     }
 
-    that.send(irc.colors.wrap(nick+'@'+source+': '+message));
+    let prefix = nick.irc.green()+'@'+source.irc.cyan()+': ';
+    debug('forward', prefix, message);
+
+    that.send(prefix+message);
   }
 
   /**

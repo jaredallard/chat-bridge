@@ -19,7 +19,6 @@ const request = require('request');
 // Parser
 const Entities = require('html-entities').AllHtmlEntities;
 const strip    = require('striptags');
-const escape   = require('escape-html');
 
 let entities   = new Entities();
 let that = null;
@@ -175,19 +174,24 @@ class Skype {
    **/
   wrapFormatter(type, ...text) {
     let formatters = {
-      bold: '<b>{{text}}</b>',
-      italic: '<i>{{text}}</i>'
+      'bold': '<b>{{text}}</b>',
+      'italic': '<i>{{text}}</i>'
     };
 
     const proc_text = text.join(' ');
     debug('wrapFormatter', 'got', text);
-    debug('wrapFormatter', 'corrected:', text);
+    debug('wrapFormatter', 'corrected:', proc_text);
 
     if(!formatters[type]) {
+      debug('wrapFormatter', type, 'not found');
       return proc_text;
     }
 
-    return formatters[type].replace('{{text}}', proc_text)
+    let formatted = formatters[type].replace('{{text}}', proc_text);
+    debug('wrapFormatter', 'formatted:', formatted);
+
+    // Return formatted text.
+    return formatted;
   }
 
   /**
@@ -208,14 +212,25 @@ class Skype {
     if(headers['Content-Length']) delete headers['Content-Length'];
 
     let sendBody              = this.sendBody;
+    let content               = ''; // invalidate
+
+    // Set Display Name, and clientmessageid
+    sendBody.imdisplayname    = self.config.display_name;
     sendBody.clientmessageid  = now.toString();
 
     if(opts.user && opts.source) {
-      sendBody.content = '<b>'+opts.user+'</b>@'+opts.source+': ';
+      content = '<b>'+opts.user+'</b>@'+opts.source+': ';
     }
 
-    sendBody.content          += escape(escape(msg)); // :(
-    sendBody.imdisplayname    = self.config.display_name;
+    // Temp fix for bot to use HTML
+    if(typeof(msg) === 'object' && msg.from === 'bot') { // is bot.
+      content                += msg.content;
+    } else { // normal user.
+      content                += entities.encode(entities.encode(msg)); // :(
+    }
+
+    // Set to content.
+    sendBody.content          = content;
 
     debug('sendRequest', sendBody.content);
 
@@ -343,7 +358,7 @@ class Skype {
       message     = strip(message);
 
       debug('message', 'from', user.name)
-      this.onmessage(user.name, message, that.metadata)
+      that.onmessage(user.name, message, that.metadata)
     }
   }
 
@@ -381,9 +396,7 @@ class Skype {
       json: true,
       gzip: true
     }, (error) => {
-      if (error) {
-        return debug('active', 'failed', error);
-      }
+      if (error) return debug('active', 'failed', error);
 
       debug('active', 'succedded');
     });
@@ -403,9 +416,9 @@ class Skype {
       headers: headers,
       gzip: true
     }, (error) => {
-      if (error) {
-        debug('ping', 'failed', error);
-      }
+      if (error) return debug('ping', 'failed', error);
+
+      debug('ping', 'succedded');
     });
   }
 
@@ -427,16 +440,15 @@ class Skype {
       json: true,
       gzip: true
     }, (error, response, body) => {
-      if (error) {
-        throw error;
-      }
-
-      if (body.errorCode) {
-        debug('poll', 'errorCode', body.errorCode);
-      }
+      if (error) throw error;
+      if (body.errorCode) debug('poll', 'errorCode', body.errorCode);
 
       // If any messages, parse them.
       if (body.eventMessages) {
+        let use_a = ' messages'
+        if(body.eventMessages.length == 1) use_a = ' a message';
+
+        debug('poll', 'parsing'+use_a)
         body.eventMessages.forEach(message => {
           // For each message, parse it.
           this.parseMessage(message)
@@ -446,6 +458,7 @@ class Skype {
       // Ping on each successful pollRequest.
       self.ping();
 
+      // Do it all again.
       return self.pollRequest();
     });
   }
