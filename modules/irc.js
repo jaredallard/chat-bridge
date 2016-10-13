@@ -75,12 +75,15 @@ class Irc {
    * @returns {node-irc#client.say} response
    **/
   send(message) {
-    if(typeof message === 'object') {
+    let msg = message;
+
+    if(msg.content) {
       debug('send', 'message is an object');
-      message = message.content;
+      msg = message.content;
     }
 
-    that.client.say(that.channel, message);
+    debug('send', msg);
+    that.client.say(that.channel, msg);
   }
 
   /**
